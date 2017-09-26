@@ -37,7 +37,7 @@ uses
   UMgrQueue, UMgrLEDCard, UMgrHardHelper, UMgrRemotePrint, U02NReader,
   UMgrERelay,   {$IFDEF MultiReplay}UMultiJS_Reply, {$ELSE}UMultiJS, {$ENDIF}
   UMgrRemoteVoice, UMgrVoiceNet, UMgrCodePrinter, UMgrLEDDisp, UMgrTTCEM100,
-  UMgrRFID102{$IFDEF HKVDVR}, UMgrCamera{$ENDIF},UMgrLEDDispCounter,Forms,USysConst;
+  UMgrRFID102{$IFDEF HKVDVR}, UMgrCamera{$ENDIF},UMgrLEDDispCounter;
 
 class function THardwareWorker.ModuleInfo: TPlugModuleInfo;
 begin
@@ -162,7 +162,7 @@ begin
 
   if not Assigned(gCounterDisplayManager) then
   begin
-    gCounterDisplayManager := TMgrLEDDispCounterManager.Create(Application.Handle);
+    gCounterDisplayManager := TMgrLEDDispCounterManager.Create(0);
   end;
 
   if not Assigned(gMultiJSManager) then
@@ -205,7 +205,7 @@ begin
   //¼ÆÊ±Æ÷ÏÔÊ¾ÆÁ
   gCounterDisplayManager.StartDisplay;
 
-  gMITReader := TMITReader.Create(gCounterDisplayManager.OnSyncChange);
+  //gMITReader := TMITReader.Create(gCounterDisplayManager.OnSyncChange);
 
   gMultiJSManager.SaveDataProc := WhenSaveJS;
   gMultiJSManager.GetTruckProc := GetJSTruck;
@@ -264,11 +264,11 @@ begin
   g02NReader.OnCardIn := nil;
   g02NReader.OnCardOut := nil;
 
-  if Assigned(gMITReader) then
-  begin
-    gMITReader.StopMe;
-    gMITReader := nil;
-  end;
+//  if Assigned(gMITReader) then
+//  begin
+//    gMITReader.StopMe;
+//    gMITReader := nil;
+//  end;
 
   gHardwareHelper.StopRead;
   gHardwareHelper.OnProce := nil;

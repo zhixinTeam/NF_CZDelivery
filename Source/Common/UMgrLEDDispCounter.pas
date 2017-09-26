@@ -778,56 +778,63 @@ var
       end;
     end;
   end;
-begin
+begin  
   try
-    nTunnelItem := GetCounterTunnelItem(nTunnel.FID);
-    if not Assigned(nTunnelItem) then
-    begin
-      nStr := 'TMgrLEDDispCounterManager.OnSyncChange--通道号[%s]不存在';
-      nStr := Format(nStr,[nTunnel.FID]);
-      WriteLog(nStr);
-      Exit;
-    end;
-
-    nIdx := FPaperBagTunnel.IndexOf(nTunnel.FID);
-    nTruck := nTunnel.FInputTruck;
-    if nIdx<>-1 then
-    begin
-      if pos('纸',nTunnelItem.FStock)=0 then
+    FSyncLock.Enter;
+    //lock first
+    
+    try
+      nTunnelItem := GetCounterTunnelItem(nTunnel.FID);
+      if not Assigned(nTunnelItem) then
       begin
-        nTunnelItem.FStock := '纸'+nTunnelItem.FStock;
+        nStr := 'TMgrLEDDispCounterManager.OnSyncChange--通道号[%s]不存在';
+        nStr := Format(nStr,[nTunnel.FID]);
+        WriteLog(nStr);
+        Exit;
+      end;
+
+      nIdx := FPaperBagTunnel.IndexOf(nTunnel.FID);
+      nTruck := nTunnel.FInputTruck;
+      if nIdx<>-1 then
+      begin
+        if pos('纸',nTunnelItem.FStock)=0 then
+        begin
+          nTunnelItem.FStock := '纸'+nTunnelItem.FStock;
+        end;
+      end;
+
+      if not nTunnel.FIsRun then
+      begin
+        nStr := '%s 空闲';
+        nStr := Format(nStr,[nTunnelItem.FDesc]);
+        Display(nTunnel.FID,cCounterDisp_CardID_tdk,nStr);
+        Display(nTunnel.FID,cCounterDisp_CardID_bzj,nStr);
+        Display(nTunnel.FID,cCounterDisp_CardID_zcg,nStr);
+      end
+      else begin
+        nStr := '%s %s 装车 %s %0.4d/%0.4d';
+        nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnelItem.FStock, nTunnel.FHasDone, ntunnel.FDaiNum]);
+        Display(nTunnel.FID,cCounterDisp_CardID_tdk,nStr);
+
+        nStr := '%s %s %0.4d/%0.4d';
+        nStr := Format(nStr,[nTunnelItem.FDesc, nTunnelItem.FStock, nTunnel.FHasDone, ntunnel.FDaiNum]);
+        Display(nTunnel.FID,cCounterDisp_CardID_bzj,nStr);
+
+        nStr := '%s %s %0.4d/%0.4d';
+        nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnel.FHasDone, ntunnel.FDaiNum]);
+        Display(nTunnel.FID,cCounterDisp_CardID_zcg,nStr);
+      end;
+    except
+      on E:Exception do
+      begin
+        nStr := 'TMgrLEDDispCounterManager.OnSyncChange(nTunnel=%s)--发生异常：[%s]';
+        nStr := Format(nStr,[toString(nTunnel),e.Message]);
+        WriteLog(nStr);
       end;
     end;
-
-    if not nTunnel.FIsRun then
-    begin
-      nStr := '%s 空闲';
-      nStr := Format(nStr,[nTunnelItem.FDesc]);
-      Display(nTunnel.FID,cCounterDisp_CardID_tdk,nStr);
-      Display(nTunnel.FID,cCounterDisp_CardID_bzj,nStr);
-      Display(nTunnel.FID,cCounterDisp_CardID_zcg,nStr);
-    end
-    else begin
-      nStr := '%s %s 装车 %s %0.4d/%0.4d';
-      nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnelItem.FStock, nTunnel.FHasDone, ntunnel.FDaiNum]);
-      Display(nTunnel.FID,cCounterDisp_CardID_tdk,nStr);
-
-      nStr := '%s %s %0.4d/%0.4d';
-      nStr := Format(nStr,[nTunnelItem.FDesc, nTunnelItem.FStock, nTunnel.FHasDone, ntunnel.FDaiNum]);
-      Display(nTunnel.FID,cCounterDisp_CardID_bzj,nStr);
-
-      nStr := '%s %s %0.4d/%0.4d';
-      nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnel.FHasDone, ntunnel.FDaiNum]);
-      Display(nTunnel.FID,cCounterDisp_CardID_zcg,nStr);
-    end;
-  except
-    on E:Exception do
-    begin
-      nStr := 'TMgrLEDDispCounterManager.OnSyncChange(nTunnel=%s)--发生异常：[%s]';
-      nStr := Format(nStr,[toString(nTunnel),e.Message]);
-      WriteLog(nStr);
-    end;
-  end;
+  finally
+    FSyncLock.Leave;
+  end;              
 end;
 
 procedure TMgrLEDDispCounterManager.SendCounterLedDispInfo(const nTruck,
@@ -838,57 +845,64 @@ var
   nIdx:Integer;
 begin
   try
-    nTunnelItem := GetCounterTunnelItem(nTunnel);
-    if not Assigned(nTunnelItem) then
-    begin
-      nStr := 'SendLedDispCounterInfo--通道号[%s]不存在';
-      nStr := Format(nStr,[nTunnel]);
-      WriteLog(nStr);
-      Exit;
-    end;
-    nIdx := FPaperBagTunnel.IndexOf(nTunnel);
-    if nIdx<>-1 then
-    begin
-      FPaperBagTunnel.Delete(nIdx);
-    end;
-  
-    if Pos('纸',nStockname)<>0 then
-    begin
-      FPaperBagTunnel.Add(nTunnel);
-      if Pos('纸',nTunnelItem.FStock)=0 then
+    FSyncLock.Enter;
+    //lock first
+
+    try
+      nTunnelItem := GetCounterTunnelItem(nTunnel);
+      if not Assigned(nTunnelItem) then
       begin
-        nTunnelItem.FStock := '纸'+nTunnelItem.FStock;
+        nStr := 'SendLedDispCounterInfo--通道号[%s]不存在';
+        nStr := Format(nStr,[nTunnel]);
+        WriteLog(nStr);
+        Exit;
+      end;
+      nIdx := FPaperBagTunnel.IndexOf(nTunnel);
+      if nIdx<>-1 then
+      begin
+        FPaperBagTunnel.Delete(nIdx);
+      end;
+  
+      if Pos('纸',nStockname)<>0 then
+      begin
+        FPaperBagTunnel.Add(nTunnel);
+        if Pos('纸',nTunnelItem.FStock)=0 then
+        begin
+          nTunnelItem.FStock := '纸'+nTunnelItem.FStock;
+        end;
+      end;
+  
+      if nDaiNum>0 then
+      begin
+        nStr := '%s%s 装车 %s %0.4d/%0.4d';
+        nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnelItem.FStock, 0, nDaiNum]);
+        Display(nTunnel, cCounterDisp_CardID_tdk, nStr);
+
+        nStr := '%s %s %0.4d/%0.4d';
+        nStr := Format(nStr,[nTunnelItem.FDesc, nTunnelItem.FStock, 0, nDaiNum]);
+        Display(nTunnel, cCounterDisp_CardID_bzj, nStr);
+
+        nStr := '%s %s %0.4d/%0.4d';
+        nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, 0, nDaiNum]);
+        Display(nTunnel, cCounterDisp_CardID_zcg, nStr);
+      end
+      else begin
+        nStr := '%s 空闲';
+        nStr := Format(nStr,[nTunnelItem.FDesc]);
+        Display(nTunnel, cCounterDisp_CardID_tdk, nStr);
+        Display(nTunnel, cCounterDisp_CardID_bzj, nStr);
+        Display(nTunnel, cCounterDisp_CardID_zcg, nStr);
+      end;
+    except
+      on E:Exception do
+      begin
+        nStr := 'TMgrLEDDispCounterManager.SendCounterLedDispInfo(nTruck=%s,nTunnel=%s,nDaiNum=%d,nStockname=%s)--发生异常[%s]';
+        nStr := Format(nStr,[nTruck,nTunnel,nDaiNum,nStockname,e.Message]);
+        WriteLog(nStr);    
       end;
     end;
-  
-    if nDaiNum>0 then
-    begin
-      nStr := '%s%s 装车 %s %0.4d/%0.4d';
-      nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnelItem.FStock, 0, nDaiNum]);
-      Display(nTunnel, cCounterDisp_CardID_tdk, nStr);
-
-      nStr := '%s %s %0.4d/%0.4d';
-      nStr := Format(nStr,[nTunnelItem.FDesc, nTunnelItem.FStock, 0, nDaiNum]);
-      Display(nTunnel, cCounterDisp_CardID_bzj, nStr);
-
-      nStr := '%s %s %0.4d/%0.4d';
-      nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, 0, nDaiNum]);
-      Display(nTunnel, cCounterDisp_CardID_zcg, nStr);
-    end
-    else begin
-      nStr := '%s 空闲';
-      nStr := Format(nStr,[nTunnelItem.FDesc]);
-      Display(nTunnel, cCounterDisp_CardID_tdk, nStr);
-      Display(nTunnel, cCounterDisp_CardID_bzj, nStr);
-      Display(nTunnel, cCounterDisp_CardID_zcg, nStr);
-    end;
-  except
-    on E:Exception do
-    begin
-      nStr := 'TMgrLEDDispCounterManager.SendCounterLedDispInfo(nTruck=%s,nTunnel=%s,nDaiNum=%d,nStockname=%s)--发生异常[%s]';
-      nStr := Format(nStr,[nTruck,nTunnel,nDaiNum,nStockname,e.Message]);
-      WriteLog(nStr);    
-    end;
+  finally
+    FSyncLock.Leave;
   end;
 end;
 
