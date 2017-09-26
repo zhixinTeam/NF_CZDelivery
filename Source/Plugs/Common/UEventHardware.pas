@@ -209,7 +209,7 @@ begin
 
   gMultiJSManager.SaveDataProc := WhenSaveJS;
   gMultiJSManager.GetTruckProc := GetJSTruck;
-  gMultiJSManager.ChangeSync := gCounterDisplayManager.OnSyncChange;
+  gMultiJSManager.ChangeThread := gCounterDisplayManager.OnSyncChange;
   gMultiJSManager.LedCounterProc := gCounterDisplayManager.SendCounterLedDispInfo;
   gMultiJSManager.MutexEvent := MakeTruckLadingDai;
   gMultiJSManager.StartJS;
