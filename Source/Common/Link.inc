@@ -286,6 +286,8 @@
   //包装阶梯误差
   {$DEFINE DaiForceQueue}
   //包装发货强制队列
+  {$DEFINE JLNF}
+  //获取喷码规则
 {$ENDIF}
 //广西南方
 

@@ -37,7 +37,7 @@ function TSrvBusiness.Action(const nFunName: AnsiString;
  var nData: AnsiString): Boolean;
 var nWorker: TBusinessWorkerBase;
 begin
-  FEvent := Format('TSrvBusiness.Action( %s )', [nFunName]);
+  FEvent := Format('TSrvBusiness.Action( %s ), Data( %s )', [nFunName,nData]);
   FTaskID := gTaskMonitor.AddTask(FEvent, 10 * 1000);
   //new task
 

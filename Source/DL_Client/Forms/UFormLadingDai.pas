@@ -45,7 +45,7 @@ implementation
 {$R *.dfm}
 uses
   IniFiles, ULibFun, UMgrControl, UFormInputbox, USysGrid, UBusinessConst,
-  USysDB, USysConst;
+  USysDB, USysConst,UFormBase;
 
 var
   gBills: TLadingBillItems;
@@ -60,16 +60,23 @@ class function TfFormLadingDai.CreateForm(const nPopedom: string;
   const nParam: Pointer): TWinControl;
 var nStr,nHint: string;
     nIdx,nInt: Integer;
+    nP: TFormCommandParam;
+    nFlag:Boolean;
 begin
   Result := nil;
   nStr := '';
 
   while True do
   begin
-    if not ShowInputBox('请输入提货磁卡号:', '栈台', nStr) then Exit;
-    nStr := Trim(nStr);
-
-    if nStr = '' then Continue;
+//    if not ShowInputBox('请输入提货磁卡号:', '栈台', nStr) then Exit;
+//    nStr := Trim(nStr);
+//
+//    if nStr = '' then Continue;
+    CreateBaseFormItem(cFI_FormReadCard, '', @nP);
+    nFlag := (nP.FCommand = cCmd_ModalResult) and (nP.FParamA = mrOK);
+    if not nFlag then Exit;
+    
+    nStr := nP.FParamB;
     if GetLadingBills(nStr, sFlag_TruckZT, gBills) then Break;
   end;
 

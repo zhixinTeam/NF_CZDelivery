@@ -58,7 +58,9 @@ begin
   Name := MakeFrameName(FrameID);
   ListParam.DoubleBuffered := True;
 
-  {$IFDEF DBPool}N2.Visible := True;{$ENDIF}
+  //{$IFDEF DBPool}
+  N2.Visible := True;
+  //{$ENDIF}
   {$IFDEF SAP}N3.Visible := True;{$ENDIF}
 
   LoadConfig(True);
@@ -139,7 +141,9 @@ var nStr: string;
     nList: TStrings;
     nPack: PParamItemPack;
     nPerform: PPerformParam;
-    {$IFDEF DBPool}nDB: PDBParam;{$ENDIF}
+    //{$IFDEF DBPool}
+    nDB: PDBParam;
+    //{$ENDIF}
     {$IFDEF SAP}nSAP: PSAPParam;{$ENDIF}
 
     function ItemFlag(const nInc: Byte): string;
@@ -184,7 +188,7 @@ begin
     end; //pack
 
     //--------------------------------------------------------------------------
-    {$IFDEF DBPool}
+    //{$IFDEF DBPool}
     nNum := 1;
     gParamManager.LoadParam(nList, ptDB);
 
@@ -223,7 +227,7 @@ begin
       NewParamItem('ConnStr', ItemFlag(0));
       UpdateItem(ItemFlag(1), nDB.FConn);
     end; //db
-    {$ENDIF}
+    //{$ENDIF}
     
     //--------------------------------------------------------------------------
     nNum := 1;

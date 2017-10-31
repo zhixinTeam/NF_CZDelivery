@@ -74,13 +74,13 @@ end;
 
 procedure TMainEventWorker.BeforeStartServer;
 begin
-  {$IFDEF DBPool}
+  //{$IFDEF DBPool}
   with gParamManager do
   begin
     gDBConnManager.DefaultConnection := ActiveParam.FDB.FID;
     gDBConnManager.MaxConn := ActiveParam.FDB.FNumWorker;
   end;
-  {$ENDIF} //db
+  //{$ENDIF} //db
 
   {$IFDEF SAP}
   with gParamManager do
@@ -99,7 +99,7 @@ begin
   gChannelChoolser.StartRefresh;
   {$ENDIF} //channel auto select
 
-  gWebChatUploader.Start(gParamManager.ActiveParam.FDB.FID);
+  //gWebChatUploader.Start(gParamManager.ActiveParam.FDB.FID);
 
   gTaskMonitor.StartMon;
   //mon task start
@@ -119,11 +119,11 @@ begin
   gSAPConnectionManager.ClearAllConnection;
   {$ENDIF}//stop sap
 
-  {$IFDEF DBPool}
+  //{$IFDEF DBPool}
   gDBConnManager.Disconnection();
-  {$ENDIF} //db
+  //{$ENDIF} //db
 
-  gWebChatUploader.Stop;
+  //gWebChatUploader.Stop;
 end;
 
 //------------------------------------------------------------------------------
@@ -147,7 +147,11 @@ end;
 procedure InitSystemObject(const nMainForm: THandle);
 var nParam: TPlugRunParameter;
 begin
+  {$IFDEF COM_MIT}
   gSysLoger := TSysLoger.Create(gPath + sLogDir, sLogSyncLock);
+  {$else}
+  gSysLoger := TSysLoger.Create(gPath + sLogDir, sLogSyncLockHard);
+  {$ENDIF}
   //日志管理器
   gTaskMonitor := TTaskMonitor.Create;
   //任务监控器
@@ -167,10 +171,10 @@ begin
   //process monitor
   {$ENDIF}
   
-  {$IFDEF DBPool}
+  //{$IFDEF DBPool}
   gDBConnManager := TDBConnManager.Create;
   FillAllDBParam;
-  {$ENDIF}
+  //{$ENDIF}
 
   {$IFDEF SAP}
   gSAPConnectionManager := TSAPConnectionManager.Create;

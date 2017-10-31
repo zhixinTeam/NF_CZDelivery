@@ -13,6 +13,9 @@ const
   cCounterDisp_CardID_tdk = 'tdk';
   cCounterDisp_CardID_bzj = 'bzj';
   cCounterDisp_CardID_zcg = 'zcg';
+
+  const_paper_package_pc325='0502010010';//32.5纸袋物料代码
+  const_paper_package_po425='0502010014';//42.5纸袋物料代码
 type
 //  card节点
   PCardInfo = ^TCardInfo;
@@ -108,7 +111,7 @@ type
     procedure StartDisplay;
     procedure StopDisplay;  
     procedure LoadConfig(const nFile: string);
-    procedure Display(const nTunnel,nCard,nText: string);
+    procedure Display(const nTunnel,nCard,nText: string;const nLocked:Boolean=True);
     constructor Create(const nHandle:THandle);
     destructor Destroy; override;
     procedure SendCounterLedDispInfo(const nTruck,nTunnel:string;const nDaiNum: Integer;const nStockname:string='');
@@ -609,7 +612,7 @@ begin
   inherited;
 end;
 
-procedure TMgrLEDDispCounterManager.Display(const nTunnel, nCard,nText: string);
+procedure TMgrLEDDispCounterManager.Display(const nTunnel, nCard,nText: string;const nLocked:Boolean);
 var
   nIdx:Integer;
   nTunnelItem:PCounterTunnel;
@@ -627,7 +630,7 @@ begin
       if not Assigned(FControler) then Exit;
 
       WriteLog('TMgrLEDDispCounterManager.Display(nTunnel='''+nTunnel+''', nCard='''+nCard+''', nText='''+nText+''')');
-      FSyncLock.Enter;
+      if nLocked then FSyncLock.Enter;
       try
         New(nItem);
         nItem.FControlType := ncardItem.FControlType;
@@ -645,7 +648,7 @@ begin
         nItem.FFontSize := nCardItem.FFontSize;
         FControler.WakupMe;
       finally
-        FSyncLock.Leave;
+        if nLocked then FSyncLock.Leave;
       end;        
     end;
   end;
@@ -762,14 +765,15 @@ var
   nTunnelItem:PCounterTunnel;
   nTruck:string;
   nIdx:Integer;
+  nLocked:Boolean;
 
   function toString(const ATunnel: PMultiJSTunnel):string;
   begin
     try
       with ATunnel^ do
       begin
-        Result := 'FID=%s,FName=%s,FTunnel=%d,FDelay=%d,FGroup=%s,FReader=%s,FInputTruck=%s,FDaiNum=%s,FHasDone=%s,FIsRun=%s,FLastBill=%s,FLastSaveDai=%d,FMutexId=%s';
-        Result := Format(Result,[FID,FName,FTunnel,FDelay,FGroup,FReader,FInputTruck,FDaiNum,FHasDone,BoolToStr(FIsRun),FLastBill,FLastSaveDai,FMutexId]);
+        Result := 'FID=%s,FName=%s,FTunnel=%d,FDelay=%d,FGroup=%s,FReader=%s,FTruck=%s,FDaiNum=%s,FHasDone=%s,FIsRun=%s,FLastBill=%s,FLastSaveDai=%d,FMutexId=%s';
+        Result := Format(Result,[FID,FName,FTunnel,FDelay,FGroup,FReader,FTruck,FDaiNum,FHasDone,BoolToStr(FIsRun),FLastBill,FLastSaveDai,FMutexId]);
       end;
     except
       on E:Exception do
@@ -782,7 +786,7 @@ begin
   try
     FSyncLock.Enter;
     //lock first
-    
+    nLocked := False;
     try
       nTunnelItem := GetCounterTunnelItem(nTunnel.FID);
       if not Assigned(nTunnelItem) then
@@ -794,7 +798,7 @@ begin
       end;
 
       nIdx := FPaperBagTunnel.IndexOf(nTunnel.FID);
-      nTruck := nTunnel.FInputTruck;
+      nTruck := nTunnel.FTruck;
       if nIdx<>-1 then
       begin
         if pos('纸',nTunnelItem.FStock)=0 then
@@ -807,22 +811,22 @@ begin
       begin
         nStr := '%s 空闲';
         nStr := Format(nStr,[nTunnelItem.FDesc]);
-        Display(nTunnel.FID,cCounterDisp_CardID_tdk,nStr);
-        Display(nTunnel.FID,cCounterDisp_CardID_bzj,nStr);
-        Display(nTunnel.FID,cCounterDisp_CardID_zcg,nStr);
+        Display(nTunnel.FID,cCounterDisp_CardID_tdk,nStr,nLocked);
+        Display(nTunnel.FID,cCounterDisp_CardID_bzj,nStr,nLocked);
+        Display(nTunnel.FID,cCounterDisp_CardID_zcg,nStr,nLocked);
       end
       else begin
         nStr := '%s %s 装车 %s %0.4d/%0.4d';
         nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnelItem.FStock, nTunnel.FHasDone, ntunnel.FDaiNum]);
-        Display(nTunnel.FID,cCounterDisp_CardID_tdk,nStr);
+        Display(nTunnel.FID,cCounterDisp_CardID_tdk,nStr,nLocked);
 
         nStr := '%s %s %0.4d/%0.4d';
         nStr := Format(nStr,[nTunnelItem.FDesc, nTunnelItem.FStock, nTunnel.FHasDone, ntunnel.FDaiNum]);
-        Display(nTunnel.FID,cCounterDisp_CardID_bzj,nStr);
+        Display(nTunnel.FID,cCounterDisp_CardID_bzj,nStr,nLocked);
 
         nStr := '%s %s %0.4d/%0.4d';
         nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnel.FHasDone, ntunnel.FDaiNum]);
-        Display(nTunnel.FID,cCounterDisp_CardID_zcg,nStr);
+        Display(nTunnel.FID,cCounterDisp_CardID_zcg,nStr,nLocked);
       end;
     except
       on E:Exception do
@@ -843,11 +847,12 @@ var
   nStr:string;
   nTunnelItem:PCounterTunnel;
   nIdx:Integer;
+  nLocked:Boolean;
 begin
   try
     FSyncLock.Enter;
     //lock first
-
+    nLocked := False;
     try
       nTunnelItem := GetCounterTunnelItem(nTunnel);
       if not Assigned(nTunnelItem) then
@@ -876,22 +881,22 @@ begin
       begin
         nStr := '%s%s 装车 %s %0.4d/%0.4d';
         nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, nTunnelItem.FStock, 0, nDaiNum]);
-        Display(nTunnel, cCounterDisp_CardID_tdk, nStr);
+        Display(nTunnel, cCounterDisp_CardID_tdk, nStr,nLocked);
 
         nStr := '%s %s %0.4d/%0.4d';
         nStr := Format(nStr,[nTunnelItem.FDesc, nTunnelItem.FStock, 0, nDaiNum]);
-        Display(nTunnel, cCounterDisp_CardID_bzj, nStr);
+        Display(nTunnel, cCounterDisp_CardID_bzj, nStr,nLocked);
 
         nStr := '%s %s %0.4d/%0.4d';
         nStr := Format(nStr,[nTunnelItem.FDesc, nTruck, 0, nDaiNum]);
-        Display(nTunnel, cCounterDisp_CardID_zcg, nStr);
+        Display(nTunnel, cCounterDisp_CardID_zcg, nStr,nLocked);
       end
       else begin
         nStr := '%s 空闲';
         nStr := Format(nStr,[nTunnelItem.FDesc]);
-        Display(nTunnel, cCounterDisp_CardID_tdk, nStr);
-        Display(nTunnel, cCounterDisp_CardID_bzj, nStr);
-        Display(nTunnel, cCounterDisp_CardID_zcg, nStr);
+        Display(nTunnel, cCounterDisp_CardID_tdk, nStr,nLocked);
+        Display(nTunnel, cCounterDisp_CardID_bzj, nStr,nLocked);
+        Display(nTunnel, cCounterDisp_CardID_zcg, nStr,nLocked);
       end;
     except
       on E:Exception do

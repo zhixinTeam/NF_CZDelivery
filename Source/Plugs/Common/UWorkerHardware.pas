@@ -466,9 +466,8 @@ end;
 //Parm: 交货单[FIn.FData];通道号[FIn.FExtParam]
 //Desc: 在指定通道上喷码
 function THardwareCommander.PrintCode(var nData: string): Boolean;
-var nStr,nBill,nCode,nArea,nCusCode,nSeal: string;
+var nStr,nBill,nCode,nArea,nCusCode,nSeal,nTruck: string;
     nPrefixLen, nIDLen: Integer;
-    nTruckno:string;
 begin
   Result := True;
   if not gCodePrinterManager.EnablePrinter then Exit;
@@ -476,55 +475,6 @@ begin
   nStr := '向通道[ %s ]发送交货单[ %s ]防违流码.';
   nStr := Format(nStr, [FIn.FExtParam, FIn.FData]);
   WriteLog(nStr);
-
-  nStr := 'Select L_Seal,L_CusCode,L_Truck From %s Where L_ID=''%s''';
-  nStr := Format(nStr, [sTable_Bill, FIn.FData]);
-
-  with gDBConnManager.WorkerQuery(FDBConn, nStr) do
-  begin
-    if RecordCount < 1 then
-    begin
-      with FOut.FBase do
-      begin
-        Result := False;
-        FResult := False;
-        FErrCode := 'E.00';
-        FErrDesc := Format('交货单[ %s ]已无效.', [FIn.FData]);
-      end;
-      Exit;
-    end;
-    nSeal     := FieldByName('L_Seal').AsString;
-    nCusCode  := FieldByName('L_CusCode').AsString;
-    nTruckno := FieldByName('L_Truck').AsString;
-  end;
-
-  //**protocol: O4D170728-001JZ0011069;
-  //**O4D170728-001:出厂编号
-  //**JZ001：经销商代码
-  //**1069：车牌后4位
-
-  nCode := '%s%s%s';
-  nCode := Format(nCode,[nSeal,
-                        nCusCode,
-                        Copy(nTruckno,Length(nTruckno)-3,4)]);
-
-  if not gCodePrinterManager.PrintCode(FIn.FExtParam, nCode, nStr) then
-  begin
-    with FOut.FBase do
-    begin
-      Result := False;
-      FResult := False;
-      FErrCode := 'E.00';
-      FErrDesc := nStr;
-    end;
-
-    Exit;
-  end;
-
-  nStr := '向通道[ %s ]发送防违流码[ %s ]成功.';
-  nStr := Format(nStr, [FIn.FExtParam, nCode]);
-  WriteLog(nStr);
-  Exit;
 
   nStr := 'Select B_Prefix,B_IDLen From %s ' +
           'Where B_Group=''%s'' And B_Object=''%s''';
@@ -550,7 +500,8 @@ begin
     if (nPrefixLen<0) or (nIDLen<0) then Exit;
     //无提货单配置
 
-    nStr := 'Select L_ID,L_Seal,L_CusCode,L_Area From %s Where L_ID=''%s''';
+    nStr := 'Select L_ID,L_Seal,L_CusCode,L_Area,L_Truck From %s ' +
+            'Where L_ID=''%s''';
     nStr := Format(nStr, [sTable_Bill, FIn.FData]);
 
     with gDBConnManager.WorkerQuery(FDBConn, nStr) do
@@ -568,6 +519,7 @@ begin
       nArea     := FieldByName('L_Area').AsString;
       nSeal     := FieldByName('L_Seal').AsString;
       nCusCode  := FieldByName('L_CusCode').AsString;
+      nTruck    := FieldByName('L_Truck').AsString;
       //xxxxx
 
       {$IFDEF PrintChinese}
@@ -602,6 +554,12 @@ begin
       nCode := nCode + FillString(nSeal, 6, '0');
       nCode := nCode + FillString(nCusCode, 2, ' ');
       nCode := nCode + Copy(nBill, nPrefixLen + 7, nIDLen-nPreFixLen-6);
+      {$ENDIF}
+
+      {$IFDEF JLNF}
+      //金鲤喷码规则：水泥批次号+客户代码(bd_cumandoc.def30)+车号后四位
+      nCode := nSeal + FillString(nCusCode, 2, ' ');
+      nCode := nCode + Copy(nTruck, Length(nTruck) - 3, 4);
       {$ENDIF}
     end;
   end;

@@ -208,7 +208,9 @@ begin
   //gMITReader := TMITReader.Create(gCounterDisplayManager.OnSyncChange);
 
   gMultiJSManager.SaveDataProc := WhenSaveJS;
+  {$IFNDEF JSTruckNone}
   gMultiJSManager.GetTruckProc := GetJSTruck;
+  {$ENDIF}
   gMultiJSManager.ChangeThread := gCounterDisplayManager.OnSyncChange;
   gMultiJSManager.LedCounterProc := gCounterDisplayManager.SendCounterLedDispInfo;
   gMultiJSManager.MutexEvent := MakeTruckLadingDai;

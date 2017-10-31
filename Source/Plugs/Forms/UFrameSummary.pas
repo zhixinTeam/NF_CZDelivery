@@ -179,7 +179,7 @@ begin
     NewSummaryItem('业务请求', ItemFlag);
     NewSummaryItem('请求错误', ItemFlag);
 
-    {$IFDEF DBPool}
+    //{$IFDEF DBPool}
     nIdx := 1;
     nStr := 'db_status';
 
@@ -194,7 +194,7 @@ begin
     NewSummaryItem('当前队列', ItemFlag);
     NewSummaryItem('队列峰值', ItemFlag);
     NewSummaryItem('峰值时间', ItemFlag);
-    {$ENDIF}
+    //{$ENDIF}
 
     {$IFDEF SAP}
     nIdx := 1;
@@ -271,7 +271,7 @@ begin
     ROModule.ReleaseStatusLock;
   end;
 
-  {$IFDEF DBPool}
+  //{$IFDEF DBPool}
   with gDBConnManager.Status do
   begin
     nIdx := 1;
@@ -289,7 +289,7 @@ begin
     UpdateItem(ItemFlag, Format('%d 个', [FNumWaitMax]));
     UpdateItem(ItemFlag, Format('%s', [DateTime2Str(FNumMaxTime)]));
   end;
-  {$ENDIF}
+  //{$ENDIF}
 
   {$IFDEF SAP}
   with gSAPConnectionManager.Status do

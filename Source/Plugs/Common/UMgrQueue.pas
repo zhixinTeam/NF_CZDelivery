@@ -500,7 +500,7 @@ end;
 procedure TTruckQueueManager.SendTruckQueueVoice(const nLocked: Boolean);
 var nStr: string;
 begin
-  if nLocked then SyncLock.Enter;
+  if nLocked then FSyncLock.Enter;
   try
     nStr := GetVoiceTruck(#9, False);
     if nStr = '' then Exit;
@@ -516,7 +516,7 @@ begin
       FLastQueueVoice := nStr;
     end;
   finally
-    if nLocked then SyncLock.Leave;
+    if nLocked then FSyncLock.Leave;
   end;
 end;
 
@@ -531,7 +531,7 @@ var i,nIdx: Integer;
     nTruck: PTruckItem;
 begin
   nList := nil;
-  if nLocked then SyncLock.Enter;
+  if nLocked then FSyncLock.Enter;
   try
     Result := '';
     nList := TStringList.Create;
@@ -561,7 +561,7 @@ begin
     end;
   finally
     nList.Free;
-    if nLocked then SyncLock.Leave;
+    if nLocked then FSyncLock.Leave;
   end;
 end;
 
@@ -571,7 +571,7 @@ end;
 function TTruckQueueManager.GetTruckTunnel(const nTruck: string): string;
 var nIdx: Integer;
 begin
-  SyncLock.Enter;
+  FSyncLock.Enter;
   try
     nIdx := TruckInQueue(nTruck);
     if nIdx < 0 then
@@ -581,7 +581,7 @@ begin
     WriteLog(Format('车辆[ %s ]选择通道[ %d:%s ]', [nTruck, nIdx, Result]));
     //display log
   finally
-    SyncLock.Leave;
+    FSyncLock.Leave;
   end;
 end;
 
@@ -595,7 +595,7 @@ begin
   Result := True;
   if Assigned(FDBReader) then
   try
-    SyncLock.Enter;
+    FSyncLock.Enter;
     //locked
 
     for i:=FLines.Count - 1 downto 0 do
@@ -613,7 +613,7 @@ begin
       Exit;
     end;
   finally
-    SyncLock.Leave;
+    FSyncLock.Leave;
   end;
 end;
 
