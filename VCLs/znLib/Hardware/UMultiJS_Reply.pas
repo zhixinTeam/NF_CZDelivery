@@ -49,8 +49,6 @@ type
     //读头地址
     FTruck: array[0..cMultiJS_Truck - 1] of Char;
     //车牌号
-    FInputTruck:string; //原始车牌号
-    
     FDaiNum: Word;
     //需装袋数
     FHasDone: Word;
@@ -632,71 +630,70 @@ var nBool: Boolean;
     nIdx,nInt: Integer;
     nTunnel: PMultiJSTunnel;
 begin
+  FOwner.FSyncLock.Enter;
   try
-    nBool := GetTickCount - FLastSave >= cMultiJS_SaveInterval;
-    if nBool then
-      FLastSave := GetTickCount;
-    //reset save time
+    try
+      nBool := GetTickCount - FLastSave >= cMultiJS_SaveInterval;
+      if nBool then
+        FLastSave := GetTickCount;
+      //reset save time
+      for nIdx:=0 to FHost.FTunnelNum - 1 do
+      begin
+        nTunnel := GetTunnel(FRecv.FData[nIdx].FAddr);
+        if not Assigned(nTunnel) then Continue;
 
-    for nIdx:=0 to FHost.FTunnelNum - 1 do
-    begin
-      nTunnel := GetTunnel(FRecv.FData[nIdx].FAddr);
-      if not Assigned(nTunnel) then Continue;
+        try
+          nInt := StrToIntDef(FRecv.FData[nIdx].FDai,0);
+          //tunnel's num
 
-      try
-        nInt := StrToInt(FRecv.FData[nIdx].FDai);
-        //tunnel's num
-      
-        if nTunnel.FHasDone < nInt then
-        begin
-          FOwner.FSyncLock.Enter;
-          try
+          if nTunnel.FHasDone < nInt then
+          begin
             if nInt >= nTunnel.FDaiNum then
-                 nTunnel.FIsRun := False
+              nTunnel.FIsRun := False
             else nTunnel.FIsRun := True;
-          
+
             nTunnel.FHasDone := nInt;
             //now dai num
-          finally
-            FOwner.FSyncLock.Leave;
+
+            if Assigned(FOwner.FChangeThread) then
+              FOwner.FChangeThread(nTunnel);
+            //thread event
+
+            if Assigned(FOwner.FChangeSync) then
+            begin
+              FNowTunnel := nTunnel;
+              Synchronize(SyncNowTunnel);
+            end;
           end;
 
-          if Assigned(FOwner.FChangeThread) then
-            FOwner.FChangeThread(nTunnel);
-          //thread event
-
-          if Assigned(FOwner.FChangeSync) then
+          if nBool and FOwner.FEnableQuery then
           begin
-            FNowTunnel := nTunnel;
-            Synchronize(SyncNowTunnel);
+            if Assigned(FOwner.FSaveDataEvent) then
+              FOwner.FSaveDataEvent(nTunnel);
+            //xxxxx
+
+            if Assigned(FOwner.FSaveDataProc) then
+              FOwner.FSaveDataProc(nTunnel);
+            //xxxxx
+
+            nTunnel.FLastSaveDai := nTunnel.FHasDone;
+            //enable query means enable auto_save
           end;
-        end;
-
-        if nBool and FOwner.FEnableQuery then
-        begin
-          if Assigned(FOwner.FSaveDataEvent) then
-            FOwner.FSaveDataEvent(nTunnel);
-          //xxxxx
-
-          if Assigned(FOwner.FSaveDataProc) then
-            FOwner.FSaveDataProc(nTunnel);
-          //xxxxx
-
-          nTunnel.FLastSaveDai := nTunnel.FHasDone;
-          //enable query means enable auto_save
-        end;
-      except
-        on E: Exception do
-        begin
-          WriteLog(Format('TMultJSItem.ApplyRespondData Host:[ %s.%s ] %s', [FHost.FHostIP, nTunnel.FID, E.Message]));
+        except
+          on E: Exception do
+          begin
+            WriteLog(Format('TMultJSItem.ApplyRespondData Host:[ %s.%s ] %s', [FHost.FHostIP, nTunnel.FID, E.Message]));
+          end;
         end;
       end;
+    except
+      on E: Exception do
+      begin
+        WriteLog(Format('TMultJSItem.ApplyRespondData--发生异常[%s]', [E.Message]));
+      end;
     end;
-  except
-    on E: Exception do
-    begin
-      WriteLog(Format('TMultJSItem.ApplyRespondData--发生异常[%s]', [E.Message]));
-    end;
+  finally
+    FOwner.FSyncLock.Leave;
   end;
 end;
 
@@ -729,6 +726,9 @@ begin
 
   FHosts := TList.Create;
   FSyncLock := TCriticalSection.Create;
+
+  FLedCounterProc := nil;
+  FMutexEvent := nil;
 end;
 
 destructor TMultiJSManager.Destroy;
@@ -1025,7 +1025,6 @@ begin
     nPT.FHasDone := 0;
     nPT.FLastSaveDai := 0;
     nPT.FLastBill := nBill;
-    nPT.FInputTruck := nTruck;
 
     nPT.FDaiNum := nDaiNum;
     nPT.FIsRun := nPT.FGroup <> '';
@@ -1055,7 +1054,7 @@ begin
   begin
     if Assigned(FLedCounterProc) then
     begin
-      FLedCounterProc(nPT.FInputTruck,nTunnel,nDaiNum,nStockName);
+      FLedCounterProc(nTruck,nTunnel,nDaiNum,nStockName);
     end;
   end;
   {$IFDEF DEBUG}
@@ -1166,18 +1165,23 @@ begin
 
   if Assigned(FLedCounterProc) then
   begin
-    FLedCounterProc(nPT.FInputTruck,nTunnel,0,'');
+    FLedCounterProc(nPT.FTruck,nTunnel,0,'');
   end;
 
-  nHost := g02NReader.GetReaderHost(nPT.FID);
-  nHost.FNextCard := '';
+  FSyncLock.Enter;
+  try
+    nHost := g02NReader.GetReaderHost(nPT.FID);
+    if Assigned(nHost) then nHost.FNextCard := '';
 
-  if (nPT.FDaiNum=nPT.FHasDone) then
-  begin
-    if AutoStartNextJS(nPT) then
+    if (nPT.FDaiNum=nPT.FHasDone) then
     begin
-      WriteLog('DelJS::AutoStartNextJS:success');
+      if AutoStartNextJS(nPT) then
+      begin
+        WriteLog('DelJS::AutoStartNextJS:success');
+      end;
     end;
+  finally
+    FSyncLock.Leave;
   end;
   
   if nPT.FGroup = '' then

@@ -233,7 +233,7 @@ begin
 
   for nIdx:=FCameras.Count - 1 downto 0 do
   begin
-    Dispose(PPTCameraItem(FCameras[nIdx]));
+    Dispose(FCameras[nIdx]);
     FCameras.Delete(nIdx);
   end;
     
@@ -384,7 +384,7 @@ begin
 end;
 
 procedure T02NReader.LoadConfig(const nFile: string);
-var nIdx,nInt,j: Integer;
+var nIdx,nInt: Integer;
     nXML: TNativeXml;
     nHost: PReaderHost;
     nNode,nTmp,nTP: TXmlNode;
@@ -614,7 +614,7 @@ begin
     for nIdx:=FCards.Count - 1 downto 0 do
     begin
       nPCard := FCards[nIdx];
-      if nPCard.FOldOne then
+      if nPCard.FOldOne or (GetTickCount - nPCard.FLast > 5 * 60 * 1000) then
       begin
         gMemDataManager.UnLockData(nPCard);
         nPCard := nil;
@@ -888,15 +888,13 @@ end;
 function T02NReader.GetReaderHost(const nID: string): PReaderHost;
 var
   nIdx:Integer;
-  nHost: PReaderHost;
 begin
   Result := nil;
   for nIdx:=FReaders.Count - 1 downto 0 do
   begin
-    nHost := FReaders[nIdx];
-    if (nID <> '') and (CompareText(nID, nHost.FID) = 0) then
+    if (nID <> '') and (CompareText(nID, PReaderHost(FReaders[nIdx]).FID)=0) then
     begin
-      Result := nHost;
+      Result := FReaders[nIdx];
       Break;
     end;
   end;
